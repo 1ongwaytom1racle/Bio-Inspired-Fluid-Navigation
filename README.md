@@ -7,7 +7,7 @@ A computational fluid dynamics project based on the IBAMR (Immersed Boundary Ada
 This project implements:
 - Eel swimming kinematics simulation (IBEELKinematics)
 - Cylinder motion kinematics simulation (IBCylinderKinematics)
-- Python-based reinforcement learning agent (PPG Agent)
+- Python-based reinforcement learning agent (PPO Agent)
 - Distributed parallel computing support
 - Automatic restart and monitoring mechanisms
 
