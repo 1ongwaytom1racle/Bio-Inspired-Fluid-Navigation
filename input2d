@@ -1,0 +1,343 @@
+// physical parameters
+Re = 300.0          // the Reynolds number
+R = 0.25
+U = 0.25
+MU = U*2*R/Re        // L^2t/Re
+RHO = 1.0
+
+// 添加新参数
+LAST_COEFF_UPDATE_TIME = 0.0 // 上次系数更新时间，用来丝滑衔接预启动的,可以从IB2DELstr.log d_time_offset看
+
+// grid spacing parameters
+MAX_LEVELS = 3                            // maximum number of levels in locally refined grid
+REF_RATIO  = 4                            // refinement ratio between levels
+N = 36                                    // actual    number of grid cells on coarsest grid level
+
+// solver parameters
+DELTA_FUNCTION       = "IB_4"
+START_TIME           = 0.0e0                      // initial simulation time
+END_TIME             = 1000.0                      // final simulation time
+MAX_INTEGRATOR_STEPS = 10000000000000             // Max no of steps.
+GROW_DT              = 2.0e0                      // growth factor for timesteps
+NUM_CYCLES           = 1                          // number of cycles of fixed-point iteration. For cIB set 1. 
+CONVECTIVE_OP_TYPE   = "PPM"                      // convective differencing discretization type
+CONVECTIVE_FORM      = "CONSERVATIVE"                // how to compute the convective terms
+NORMALIZE_PRESSURE   = FALSE                      // whether to explicitly force the pressure to have mean zero
+CFL_MAX              = 0.3                        // maximum CFL number
+DT_MAX               = 0.0015                      // maximum timestep size fish:0.0005,cylidner:0.002
+VORTICITY_TAGGING    = TRUE                       // whether to tag cells for refinement based on vorticity thresholds
+TAG_BUFFER           = 2                          // size of tag buffer used by grid generation algorithm
+REGRID_CFL_INTERVAL  = 0.5                        // regrid whenever any material point could have moved 0.5 meshwidths since previous regrid
+OUTPUT_U             = TRUE
+OUTPUT_P             = TRUE
+OUTPUT_F             = FALSE
+OUTPUT_OMEGA         = TRUE
+OUTPUT_DIV_U         = TRUE
+ENABLE_LOGGING       = TRUE
+
+// Initial control volume parameters for structure 0 (fish)
+InitHydroForceBox_0 {
+   lower_left_corner  = -1.0, -0.7, 0.0
+   upper_right_corner = 1.0, 0.7, 0.0
+   init_velocity      = 0.0, 0.0, 0.0
+}
+
+// Initial control volume parameters for structure 1 (cylinder)
+InitHydroForceBox_1 {
+   lower_left_corner  = -5.0, -1.0, 0.0
+   upper_right_corner = -3.5,  1.0, 0.0
+   init_velocity      = 0.0, 0.0, 0.0
+}
+
+VelocityBcCoefs_0 {
+   t_half = 0.5
+   tau = 0.125
+
+   acoef_function_0 = "1.0"
+   acoef_function_1 = "0.0"
+   acoef_function_2 = "0.0"
+   acoef_function_3 = "0.0"
+
+   bcoef_function_0 = "0.0"
+   bcoef_function_1 = "1.0"
+   bcoef_function_2 = "1.0"
+   bcoef_function_3 = "1.0"
+
+   gcoef_function_0 = "0.0*(tanh((t-t_half)/tau)+tanh(t_half/tau))/(1+tanh(t_half/tau))"
+   gcoef_function_1 = "0.0"
+   gcoef_function_2 = "0.0"
+   gcoef_function_3 = "0.0"
+}
+
+VelocityBcCoefs_1 {
+   acoef_function_0 = "1.0"
+   acoef_function_1 = "0.0"
+   acoef_function_2 = "1.0"
+   acoef_function_3 = "1.0"
+
+   bcoef_function_0 = "0.0"
+   bcoef_function_1 = "1.0"
+   bcoef_function_2 = "0.0"
+   bcoef_function_3 = "0.0"
+
+   gcoef_function_0 = "0.0" //cos(pi*X_1/8.0)*exp(-2.0*t)
+   gcoef_function_1 = "0.0"
+   gcoef_function_2 = "0.0"
+   gcoef_function_3 = "0.0"
+}
+IBHierarchyIntegrator {
+   start_time           = START_TIME
+   end_time             = END_TIME
+   grow_dt              = GROW_DT
+   num_cycles           = NUM_CYCLES
+   regrid_cfl_interval  = REGRID_CFL_INTERVAL
+   dt_max               = DT_MAX
+   enable_logging       = ENABLE_LOGGING
+   max_integrator_steps = MAX_INTEGRATOR_STEPS
+   error_on_dt_change   = FALSE
+   warn_on_dt_change    = FALSE
+
+}
+
+ConstraintIBMethod {
+   delta_fcn                = DELTA_FUNCTION
+   enable_logging           = ENABLE_LOGGING
+   needs_divfree_projection = FALSE
+   rho_solid                = RHO,RHO
+   
+   // Options to calculate the structure's momenta
+   calculate_structure_linear_mom       = TRUE            // default false
+   calculate_structure_rotational_mom   = TRUE            // default false
+   
+   PrintOutput {
+   print_output          = TRUE               //default false
+   output_interval       = 1                  //default 1
+   output_drag           = TRUE               //default false
+   output_torque         = FALSE               //default false
+   output_power          = TRUE              //default false
+   output_rig_transvel   = TRUE              //default false
+   output_rig_rotvel     = FALSE              //default false
+   output_com_coords     = TRUE               //default false
+   output_moment_inertia = FALSE              //default false
+   output_eulerian_mom   = FALSE               //default false
+   output_dirname        = "./CoupledStr"       // 修改输出目录
+   base_filename         = "Coupled"            // 修改基础文件名
+  }
+
+}
+
+num_structures = 2
+
+ConstraintIBKinematics {
+
+   eel2d {
+
+        structure_names                  = "eel2d"
+        structure_levels                 =  MAX_LEVELS - 1
+        calculate_translational_momentum = 1,1,0 //1,1,0
+        calculate_rotational_momentum    = 0,0,1 
+        lag_position_update_method       = "CONSTRAINT_POSITION"
+        tagged_pt_identifier             = MAX_LEVELS - 1, 0  // level, relative idx of lag point
+        
+        initial_angle_body_axis_0         = 0.0                     //default 0.0
+        body_shape_equation               = "0.125* ( (X_0 + 0.03125)/1.03125 ) * sin( 2*PI*X_0 - (0.785/0.125)*T )"
+        deformation_velocity_function_0   = "( -0.785* ( (X_0 + 0.03125)/1.03125 )*cos( 2*PI*X_0 - (0.785/0.125)*T ) )*N_0"
+        deformation_velocity_function_1   = "( -0.785*  ( (X_0 + 0.03125)/1.03125 )*cos( 2*PI*X_0 - (0.785/0.125)*T ) )*N_1"
+       
+        body_is_maneuvering                 = FALSE       //default false. If FALSE then nothing below has any effect.
+        maneuvering_axis_equation           = "sqrt(1.3^2 -(X_0 - 0.5)^2) - 1.2"     //"0.1*sin(PI*X_0)"
+        maneuvering_axis_is_changing_shape  = TRUE  // should be true.
+       
+        food_location_in_domain_0         =  1.0
+        food_location_in_domain_1         = -3.3
+   }
+   // 添加圆柱体设置
+   cylinder2d {
+        structure_names                  = "cylinder2d" 
+        structure_levels                 = MAX_LEVELS - 1
+        calculate_translational_momentum = 0,0,0
+        calculate_rotational_momentum    = 0,0,0
+        lag_position_update_method       = "CONSTRAINT_VELOCITY"
+        tagged_pt_identifier             = MAX_LEVELS - 1, 0
+   
+        kinematics_velocity_function_0   = "0.0"
+        kinematics_velocity_function_1   = "0.0"
+        kinematics_velocity_function_2   = "0.0"
+   }
+   
+}
+
+IBStandardInitializer {
+   max_levels      = MAX_LEVELS
+   structure_names = "eel2d", "cylinder2d"
+
+   eel2d {
+      level_number = MAX_LEVELS - 1
+   }
+
+   cylinder2d {
+      level_number = MAX_LEVELS - 1
+   }
+}
+
+INSStaggeredHierarchyIntegrator {
+   mu                         = MU
+   rho                        = RHO
+   start_time                 = START_TIME
+   end_time                   = END_TIME
+   grow_dt                    = GROW_DT
+   convective_op_type         = CONVECTIVE_OP_TYPE
+   convective_difference_form = CONVECTIVE_FORM
+   normalize_pressure         = NORMALIZE_PRESSURE
+   cfl                        = CFL_MAX
+   dt_max                     = DT_MAX
+   using_vorticity_tagging    = VORTICITY_TAGGING
+   vorticity_abs_thresh       = 0.25 , 1.0 , 2.5 , 5
+   tag_buffer                 = TAG_BUFFER
+   output_U                   = OUTPUT_U
+   output_P                   = OUTPUT_P
+   output_F                   = OUTPUT_F
+   output_Omega               = OUTPUT_OMEGA
+   output_Div_U               = OUTPUT_DIV_U
+   enable_logging             = ENABLE_LOGGING
+
+   VelocityHypreSolver {
+      solver_type           = "Split"
+      split_solver_type     = "PFMG"
+      relative_residual_tol = 1.0e-12
+      max_iterations        = 1
+      enable_logging        = FALSE
+   }
+
+   VelocityFACSolver {
+      num_pre_sweeps  = 0
+      num_post_sweeps = 1
+      coarse_solver_choice = "hypre"
+      coarse_solver_tolerance = 1.0e-12
+      coarse_solver_max_iterations = 1
+      prolongation_method = "CONSTANT_REFINE"
+      restriction_method  = "CONSERVATIVE_COARSEN"
+      hypre_solver {
+         solver_type           = "Split"
+         split_solver_type     = "PFMG"
+         relative_residual_tol = 1.0e-12
+         max_iterations        = 1
+         enable_logging        = FALSE
+      }
+   }
+
+   PressureHypreSolver {
+      solver_type           = "PFMG"
+      rap_type              = 0
+      relax_type            = 2
+      skip_relax            = 1
+      num_pre_relax_steps   = 2
+      num_post_relax_steps  = 2
+      relative_residual_tol = 1.0e-2
+      max_iterations        = 100
+      enable_logging        = FALSE
+   }
+
+   PressureFACSolver {
+      num_pre_sweeps  = 0
+      num_post_sweeps = 3
+      coarse_solver_choice = "hypre"
+      coarse_solver_tolerance = 1.0e-12
+      coarse_solver_max_iterations = 1
+      prolongation_method = "LINEAR_REFINE"
+      restriction_method  = "CONSERVATIVE_COARSEN"
+      hypre_solver {
+         solver_type           = "PFMG"
+         rap_type              = 0
+         relax_type            = 2
+         skip_relax            = 1
+         num_pre_relax_steps   = 0
+         num_post_relax_steps  = 3
+         relative_residual_tol = 1.0e-12
+         max_iterations        = 1
+         enable_logging        = FALSE
+      }
+   }
+}
+
+Main {
+
+// 服务器端口
+   py_server_port = 9997
+
+// 控制鱼体是否激活
+   ACTIVATE_FISH_IN_THIS_RUN = TRUE  // TRUE: 激活鱼体, FALSE: 不激活鱼体
+
+// log file parameters
+   log_file_name               = "IB2dEelStr.log"
+   log_all_nodes               = FALSE
+
+// visualization dump parameters
+   viz_writer                  = "VisIt","Silo"
+   viz_dump_interval           = 300                   // zero to turn off
+   viz_dump_dirname            = "viz_eel2d_Str"
+   visit_number_procs_per_file = 1
+
+// restart dump parameters
+   restart_dump_interval       = 0                 // zero to turn off
+   restart_dump_dirname        = "restart_IB2dStrDiv"
+
+// hierarchy data dump parameters
+   data_dump_interval          = 0                     // zero to turn off
+   data_dump_dirname           = "hier_data_IB2dStr"
+
+// timer dump parameters
+   timer_dump_interval         = 1000000                    // zero to turn off
+}
+
+CartesianGeometry {
+   domain_boxes = [ (0,0) , (6*N - 1 , 4*N - 1) ]  // 网格数增加一倍
+   x_lo         =  -20.0, -8.0                      // x方向：-16到16，y方向：-8到8  
+   x_up         =   4.0,  8.0             
+   periodic_dimension = 0, 0  
+}
+
+GriddingAlgorithm {
+   max_levels = MAX_LEVELS           // Maximum number of levels in hierarchy.
+   ratio_to_coarser {
+      level_1 = REF_RATIO, REF_RATIO  // vector ratio to next coarser level
+      level_2 = REF_RATIO, REF_RATIO
+      level_3 = REF_RATIO, REF_RATIO
+      level_4 = REF_RATIO, REF_RATIO
+      level_5 = REF_RATIO, REF_RATIO
+      level_6 = REF_RATIO, REF_RATIO
+      level_7 = REF_RATIO, REF_RATIO
+   }
+
+   largest_patch_size {
+      level_0 = 256, 256 // largest patch allowed in hierarchy
+                       // all finer levels will use same values as level_0...
+   }
+
+   smallest_patch_size {
+      level_0 =  16,  16 // smallest patch allowed in hierarchy
+                       // all finer levels will use same values as level_0...
+   }
+
+   allow_patches_smaller_than_minimum_size_to_prevent_overlaps = TRUE
+   efficiency_tolerance   = 0.6e0    // min % of tag cells in new patch level
+   combine_efficiency     = 0.8e0    // chop box if sum of volumes of smaller
+                                      // boxes < efficiency * vol of large box
+}
+
+StandardTagAndInitialize {
+   tagging_method = "GRADIENT_DETECTOR"
+}
+
+LoadBalancer {
+   bin_pack_method     = "SPATIAL"
+   max_workload_factor = 1.5
+}
+
+TimerManager{
+   print_exclusive = TRUE
+   print_total = FALSE
+   print_threshold = 0
+   print_percentage = TRUE
+   timer_list = "IBAMR::*::*", "IBTK::*::*" , "*::*::*", "*::ConstraintIBMethod::*" 
+}
