@@ -156,43 +156,12 @@ Project Root/
 - Edit Slurm parameters in `run_envs.sh`
 - Adjust agent parameters in Python scripts
 
-## Paratera Cloud Specific Notes
-
-### Platform Features
-- **High-Performance Computing**: Optimized for scientific computing workloads
-- **MPI Support**: Full MPI implementation for parallel processing
-- **Slurm Integration**: Native Slurm job scheduling support
-- **Resource Management**: Efficient allocation of compute resources
-
-### Best Practices
-- Submit jobs during off-peak hours for better resource availability
-- Monitor job queue status using `squeue` command
-- Use appropriate partition specifications for your workload
-- Check system load before submitting large jobs
-
-## Troubleshooting
-
-### Common Issues
-
-1. **Compilation Failures**: Check dependency library paths and versions
-2. **MPI Errors**: Verify MPI environment configuration on Paratera Cloud
-3. **Permission Issues**: Ensure scripts have execution permissions
-4. **Resource Insufficiency**: Check Slurm queue resource limits and availability
-
-### Log Files
+## Log Files
 
 - `allocation_log.txt`: Detailed environment allocation logs
 - `env*.log`: Runtime logs for each environment
 - `server.log`: Python server logs
 - `model_server_log.txt`: Model server logs
-
-## Technical Support
-
-If you encounter issues, please check:
-1. System environment configuration on Paratera Cloud
-2. Dependency library version compatibility
-3. Error messages in log files
-4. Slurm job status using `squeue` and `scontrol`
 
 ## Dependencies
 
